@@ -1,23 +1,33 @@
 package com.example.demo;
 
+import com.cloudinary.utils.ObjectUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.ModelAttribute;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import javax.validation.Valid;
+import java.io.IOException;
 import java.security.Principal;
+import java.util.Map;
 
 @Controller
 public class HomeController {
-    g
+
+    @Autowired
+    UserRepository userRepository;
 
     @Autowired
     RoleRepository roleRepository;
+
+    @Autowired
+    ActorRepository actorRepository;
+
+    @Autowired
+    CloudinaryConfig cloudc;
+
 
     @RequestMapping("/secure")
     public String secure(Principal principal, Model model){ //principal has all the information on the user logged in
@@ -52,8 +62,32 @@ public class HomeController {
     }
 
     @RequestMapping("/")
-    public String index(Principal principal, Model model){
-        return "index";
+    public String listActors(Model model){
+        model.addAttribute("actors", actorRepository.findAll()); //comes as an collection not an arraylist (can be converted to one)
+        return "list";
+    }
+
+    @GetMapping("/add")
+    public String newActor(Model model){
+        model.addAttribute("actor", new Actor());
+        return "actorForm";
+    }
+
+    @PostMapping("/add")
+    public String processActor(@ModelAttribute Actor actor, //@RequestParam makes sure whatever form comes through the @GetMapping has a specific parameter (in this case "file")
+                               @RequestParam("file") MultipartFile file){
+        if (file.isEmpty()){
+            return "redirect:/add";
+        }
+        try{
+            Map uploadResult = cloudc.upload(file.getBytes(), ObjectUtils.asMap("resourcetype", "auto"));
+            actor.setHeadshot(uploadResult.get("url").toString());
+            actorRepository.save(actor);
+        } catch (IOException e){
+            e.printStackTrace();
+            return "redirect:/add";
+        }
+        return "redirect:/";
     }
 
     @RequestMapping("/login")
